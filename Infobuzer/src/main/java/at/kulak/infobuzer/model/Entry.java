@@ -3,56 +3,48 @@ package at.kulak.infobuzer.model;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.Log;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.Date;
 
 /**
  * Created by kulak on 4/4/14.
  */
 public class Entry implements Parcelable{
-    JSONObject data = null;
-    public Entry(JSONObject d) {
-        data = d;
+    //JSONObject data = null;
+
+    private String shortTitle;
+    private String title;
+    private String description;
+    private String image;
+    private String url;
+    private String[] categories;
+    long startDate;
+
+    public Entry() {
     }
 
-    private String jsonConvert(String key) {
-        return jsonConvert(key, "");
-    }
-
-    private String jsonConvert(String key, String deflt) {
-        try {
-            return data.getString(key);
-        } catch(JSONException e) {
-            return deflt;
-        }
-    }
-
-    public Date getStartDate() throws Exception {
-            long seconds = data.getLong("startDate");
-            return new Date(seconds * 1000);
+    public Date getStartDate() {
+            return new Date(startDate * 1000);
     }
 
     public String getShortTitle() {
-        return jsonConvert("shortTitle");
+        return shortTitle;
     }
 
     public String getCategoriesString(int limit) {
-        try {
-            JSONArray ar = data.getJSONArray("categories");
-            String result = "";
-            String separator = "";
-            for(int i=0;i<(Math.min(ar.length(), limit));i++) {
-                result += separator + ar.getString(i);
-                separator = ", ";
-            }
-            return result;
-        } catch(Exception e) {
-            return "";
+        String result = "";
+        String separator = "";
+        for(int i=0;i<Math.min(categories.length, limit); i++) {
+            result += separator + categories[i];
+            separator = ", ";
         }
+        return result;
     }
 
     public String getCategoriesString() {
@@ -60,19 +52,19 @@ public class Entry implements Parcelable{
     }
 
     public String getTitle() {
-        return jsonConvert("title", "No title");
+        return title;
     }
 
     public String getDescription() {
-        return jsonConvert("description", "No description");
+        return description;
     }
 
     public String getImageUrl() {
-        return jsonConvert("image");
+        return image;
     }
 
     public String getUrl() {
-        return jsonConvert("url");
+        return url;
     }
 
     @Override
@@ -94,15 +86,36 @@ public class Entry implements Parcelable{
             };
 
     @Override
-    public void writeToParcel(Parcel parcel, int i) {
-        parcel.writeString(data.toString());
+    public void writeToParcel(Parcel parcel, int j) {
+        parcel.writeString(shortTitle);
+        parcel.writeString(title);
+        parcel.writeString(description);
+        parcel.writeString(image);
+        parcel.writeString(url);
+
+        ArrayList<String> list = new ArrayList<String>();
+        for(int i=0;i<categories.length;i++)
+            list.add(categories[i]);
+
+        parcel.writeStringList(list);
+        parcel.writeLong(startDate);
     }
 
     public Entry(Parcel parcel) {
-        try {
-            this.data = new JSONObject(parcel.readString());
-        } catch(Exception e) {
-            // sic
+        shortTitle = parcel.readString();
+        title = parcel.readString();
+        description = parcel.readString();
+        image = parcel.readString();
+        url = parcel.readString();
+        ArrayList<String> list = new ArrayList<String>();
+        parcel.readStringList(list);
+        categories = new String[list.size()];
+
+        for(int i=0;i<list.size();i++) {
+            categories[i] = list.get(i);
         }
+
+        startDate = parcel.readLong();
+
     }
 }

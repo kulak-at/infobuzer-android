@@ -22,4 +22,5 @@ dependencies {
     compile 'com.android.support:appcompat-v7:+'
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.github.snowdream.android:smartimageview:0.0.2@jar'
+    compile 'com.google.code.gson:gson:2.1@jar'
 }

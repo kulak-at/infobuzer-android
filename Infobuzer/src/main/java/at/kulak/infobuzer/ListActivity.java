@@ -5,10 +5,10 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.os.AsyncTask;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -20,39 +20,57 @@ import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
 
+import com.google.gson.Gson;
+
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONTokener;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 import at.kulak.infobuzer.model.Entry;
 
 public class ListActivity extends ActionBarActivity {
 
     final String URL = "http://infobuzer.pl/voucher/json";
-    ArrayList<Entry> data = null;
+    Entry[] data = null;
+    boolean isLoading = false; // if data is currently loading - prevent double downloading on orientation change
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_list);
+    }
 
-        getDataFromServer();
+    @Override
+    protected void onResume() {
+        super.onResume();
 
+        if(data == null && !isLoading) // prevent reloading on orientation change.
+            getDataFromServer();
+        else
+            loadDataIntoView();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putParcelableArray("data", data);
+        outState.putBoolean("isLoading", isLoading);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        data = (Entry[])savedInstanceState.getParcelableArray("data");
+        isLoading = savedInstanceState.getBoolean("isLoading");
     }
 
     private void getDataFromServer() {
@@ -71,43 +89,17 @@ public class ListActivity extends ActionBarActivity {
             }
 
             @Override
-            protected void onPostExecute(String s) {
-                super.onPostExecute(s);
-                try {
-                    JSONArray ar = new JSONArray(s);
-                    if(ar.length() <= 0)
-                        throw new Exception("No entries");
+            protected void onPostExecute(Void stream) {
+                super.onPostExecute(stream);
 
-                    ArrayList<Entry> entries = new ArrayList<Entry>();
-                    for(int i=0; i<ar.length(); i++) {
-                        try {
-                            entries.add(new Entry(ar.getJSONObject(i)));
-                        } catch(Exception e) {
-                            // ignore if single entry is unreadable
-                        }
-                    }
+                // onPostExecute is on UI Thread
 
-                    ListActivity.this.data = entries;
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            progress.dismiss();
-                            ListActivity.this.loadDataIntoView();
-                        }
-                    });
-
-
-                } catch(Exception e) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            progress.dismiss();
-                            ListActivity.this.showExitAlert();
-                        }
-                    });
-                }
+                progress.dismiss();
+                isLoading = false;
+                ListActivity.this.loadDataIntoView();
             }
         };
+        isLoading = true;
         task.execute();
     }
 
@@ -124,6 +116,15 @@ public class ListActivity extends ActionBarActivity {
     }
 
     private void loadDataIntoView() {
+
+        if(isLoading && this.data == null)
+            return;
+
+        if(this.data == null || this.data.length <= 0) {
+            this.showExitAlert();
+            return;
+        }
+
         final ListView list = (ListView)findViewById(R.id.list);
         ListAdapter adapter = new EntriesAdapter(this, R.layout.list_element, this.data);
         list.setAdapter(adapter);
@@ -141,17 +142,13 @@ public class ListActivity extends ActionBarActivity {
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        
-        // Inflate the menu; this adds items to the action bar if it is present.
+
         getMenuInflater().inflate(R.menu.list, menu);
         return true;
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_refresh) {
             getDataFromServer();
@@ -160,33 +157,24 @@ public class ListActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    private class DataTask extends AsyncTask<Void, Void, String> {
-
-        protected String convertInputStreamToString(InputStream stream) throws IOException {
-
-            BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
-            String line = "";
-            StringBuilder result = new StringBuilder();
-            while((line = reader.readLine()) != null ) {
-                result.append(line);
-            }
-            return result.toString();
-        }
+    private class DataTask extends AsyncTask<Void, Void, Void> {
 
         @Override
-        protected String doInBackground(Void... voids) {
+        protected Void doInBackground(Void... voids) {
             try {
                 // get data from the server
                 HttpClient client = new DefaultHttpClient();
                 HttpGet req = new HttpGet();
                 req.setURI(new URI(ListActivity.this.URL));
                 InputStream stream = client.execute(req).getEntity().getContent();
-                String result = convertInputStreamToString(stream);
-                return result;
 
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+                Gson gson = new Gson();
+                Entry[] entries = gson.fromJson(reader, Entry[].class);
+                ListActivity.this.data = entries;
+                return null;
             } catch(Exception e) {
-                // fail
-                Log.i("kulak", "err: " + e.getMessage());
                 return null;
             }
         }
@@ -194,7 +182,7 @@ public class ListActivity extends ActionBarActivity {
 
     private class EntriesAdapter extends ArrayAdapter<Entry> {
         private int resource;
-        public EntriesAdapter(Context context, int resource, List<Entry> entries) {
+        public EntriesAdapter(Context context, int resource, Entry[] entries) {
             super(context, resource, entries);
             this.resource = resource;
         }

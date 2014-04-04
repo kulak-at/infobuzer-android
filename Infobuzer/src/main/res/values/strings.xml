@@ -4,9 +4,9 @@
     <string name="app_name">Infobuzer</string>
     <string name="action_refresh">Refresh</string>
     <string name="title_activity_details">Details</string>
-    <string name="close_dialog_message">Cannot get offers list. Check your internet connection</string>
-    <string name="close_dialog_button">OK</string>
+    <string name="close_dialog_message">Cannot get offers list. Check your internet connection.</string>
+    <string name="close_dialog_button">Exit</string>
     <string name="progress_title">Loading</string>
-    <string name="progress_message">Downloading new messages.</string>
+    <string name="progress_message">Downloading new offers.</string>
     <string name="no_browser_error">You must have a web browser to open this link.</string>
 </resources>
