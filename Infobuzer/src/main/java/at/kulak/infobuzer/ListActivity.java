@@ -1,11 +1,14 @@
 package at.kulak.infobuzer;
 
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.AsyncTask;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -22,8 +25,10 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONTokener;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -59,8 +64,9 @@ public class ListActivity extends ActionBarActivity {
             protected void onPreExecute() {
                 super.onPreExecute();
                 progress = new ProgressDialog(ListActivity.this);
-                progress.setTitle("Loading");
-                progress.setMessage("Downloading new messages.");
+                progress.setTitle(getString(R.string.progress_title));
+                progress.setMessage(getString(R.string.progress_message));
+                progress.setCancelable(false);
                 progress.show();
             }
 
@@ -69,6 +75,9 @@ public class ListActivity extends ActionBarActivity {
                 super.onPostExecute(s);
                 try {
                     JSONArray ar = new JSONArray(s);
+                    if(ar.length() <= 0)
+                        throw new Exception("No entries");
+
                     ArrayList<Entry> entries = new ArrayList<Entry>();
                     for(int i=0; i<ar.length(); i++) {
                         try {
@@ -88,12 +97,30 @@ public class ListActivity extends ActionBarActivity {
                     });
 
 
-                } catch(JSONException e) {
-                    // TODO: something here
+                } catch(Exception e) {
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            progress.dismiss();
+                            ListActivity.this.showExitAlert();
+                        }
+                    });
                 }
             }
         };
         task.execute();
+    }
+
+    private void showExitAlert() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        final String message = getString(R.string.close_dialog_message);
+        final String button_str = getString(R.string.close_dialog_button);
+        builder.setMessage(message).setCancelable(false).setPositiveButton(button_str, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                ListActivity.this.finish();
+            }
+        }).show();
     }
 
     private void loadDataIntoView() {
@@ -126,7 +153,8 @@ public class ListActivity extends ActionBarActivity {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_refresh) {
+            getDataFromServer();
             return true;
         }
         return super.onOptionsItemSelected(item);
@@ -147,7 +175,6 @@ public class ListActivity extends ActionBarActivity {
 
         @Override
         protected String doInBackground(Void... voids) {
-
             try {
                 // get data from the server
                 HttpClient client = new DefaultHttpClient();
@@ -159,7 +186,8 @@ public class ListActivity extends ActionBarActivity {
 
             } catch(Exception e) {
                 // fail
-                return "[]";
+                Log.i("kulak", "err: " + e.getMessage());
+                return null;
             }
         }
     }
@@ -190,7 +218,7 @@ public class ListActivity extends ActionBarActivity {
 
             String shortTitle = entry.getShortTitle();
             tv_title.setText(shortTitle.substring(0, Math.min(shortTitle.length(), 30))); // first 30 chars.
-            tv_categories.setText(entry.getCategories());
+            tv_categories.setText(entry.getCategoriesString(2));
             try {
                 Date date = entry.getStartDate();
                 DateFormat df = new SimpleDateFormat("MM/dd/yyyy");

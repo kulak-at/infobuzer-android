@@ -40,17 +40,23 @@ public class Entry implements Parcelable{
         return jsonConvert("shortTitle");
     }
 
-    public String getCategories() {
+    public String getCategoriesString(int limit) {
         try {
             JSONArray ar = data.getJSONArray("categories");
             String result = "";
-            for(int i=0;i<(Math.min(ar.length(), 2));i++) {
-                result += ar.getString(i);
+            String separator = "";
+            for(int i=0;i<(Math.min(ar.length(), limit));i++) {
+                result += separator + ar.getString(i);
+                separator = ", ";
             }
             return result;
         } catch(Exception e) {
             return "";
         }
+    }
+
+    public String getCategoriesString() {
+        return getCategoriesString(2);
     }
 
     public String getTitle() {
