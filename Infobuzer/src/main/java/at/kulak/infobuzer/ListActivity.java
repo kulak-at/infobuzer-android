@@ -2,6 +2,7 @@ package at.kulak.infobuzer;
 
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -10,6 +11,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListAdapter;
 import android.widget.ListView;
@@ -95,9 +97,18 @@ public class ListActivity extends ActionBarActivity {
     }
 
     private void loadDataIntoView() {
-        ListView list = (ListView)findViewById(R.id.list);
+        final ListView list = (ListView)findViewById(R.id.list);
         ListAdapter adapter = new EntriesAdapter(this, R.layout.list_element, this.data);
         list.setAdapter(adapter);
+        list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int position, long l) {
+                Entry entry = (Entry)list.getAdapter().getItem(position);
+                Intent intent = new Intent(ListActivity.this, DetailsActivity.class);
+                intent.putExtra("entry", entry);
+                startActivity(intent);
+            }
+        });
     }
 
 
